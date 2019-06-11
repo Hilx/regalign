@@ -27,7 +27,7 @@
 
 `timescale 1ps/1ps
 
-module osnt_sume_ddr3A
+module osnt_sume_ddr3B
 #(
    parameter   C_S_AXI_DATA_WIDTH      = 32,          
    parameter   C_S_AXI_ADDR_WIDTH      = 32,          
@@ -146,7 +146,7 @@ wire  [C_S_AXI_ADDR_WIDTH-1:0]               Bus2IP_Addr;
 wire  [0:0]                                  Bus2IP_CS;
 wire                                         Bus2IP_RNW; // 0: wr, 1: rd
 wire  [C_S_AXI_DATA_WIDTH-1:0]               Bus2IP_Data;
-
+wire  [C_S_AXI_DATA_WIDTH/8-1:0]             Bus2IP_BE;
 wire  [C_S_AXI_DATA_WIDTH-1:0]               IP2Bus_Data;
 wire                                         IP2Bus_RdAck;
 wire                                         IP2Bus_WrAck;
@@ -216,66 +216,6 @@ reg   [127:0]  m2b_tuser_current, m2b_tuser_next;
 
 wire  en_tuser, en_tlast;
 
-// new port mapping signals
-reg   [`MEM_MEM_ADDR_BITS]  mem_addr;
-reg   [`MEM_MEM_DATA_BITS]  mem_data
-reg                         mem_rd_wrn;
-reg                         mem_cmd_valid;
-wire  [`MEM_MEM_DATA_BITS]  mem_reply;
-wire                        mem_reply_valid;
-
-assign mem_reply = IP2Bus_Data;
-assign mem_reply_valid = IP2Bus_WrAck || IP2Bus_RdAck;
-assign Bus2IP_Addr = mem_addr;
-assign Bus2IP_Data = mem_data;
-assign Bus2IP_RNW = mem_rd_wrn;
-assign Bus2IP_CS = mem_cmd_valid;
-
-ddr3a_cpu_regs #
-(
-.C_BASE_ADDRESS(32'h00000000),
-.C_S_AXI_DATA_WIDTH(32),  
-.C_S_AXI_ADDR_WIDTH(32)   
-)
-(
-    // General ports
-    clk(clk),
-    resetn(resetn),
-    // Global Registers
-    cpu_resetn_soft(),
-    resetn_soft(),
-    resetn_sync(),
-
-   // Register ports
-    mem_addr(mem_addr),
-    mem_data(mem_data),
-    mem_rd_wrn(mem_rd_wrn),
-    mem_cmd_valid(mem_cmd_valid),
-    mem_reply(mem_reply),
-    mem_reply_valid(mem_reply_valid),
-
-    // AXI Lite ports
-   .S_AXI_ACLK             (  clk                     ),
-   .S_AXI_ARESETN          (  resetn                  ),
-   .S_AXI_AWADDR           (  S_AXI_AWADDR            ),
-   .S_AXI_AWVALID          (  S_AXI_AWVALID           ),
-   .S_AXI_WDATA            (  S_AXI_WDATA             ),
-   .S_AXI_WSTRB            (  S_AXI_WSTRB             ),
-   .S_AXI_WVALID           (  S_AXI_WVALID            ),
-   .S_AXI_BREADY           (  S_AXI_BREADY            ),
-   .S_AXI_ARADDR           (  S_AXI_ARADDR            ),
-   .S_AXI_ARVALID          (  S_AXI_ARVALID           ),
-   .S_AXI_RREADY           (  S_AXI_RREADY            ),
-   .S_AXI_ARREADY          (  S_AXI_ARREADY           ),
-   .S_AXI_RDATA            (  S_AXI_RDATA             ),
-   .S_AXI_RRESP            (  S_AXI_RRESP             ),
-   .S_AXI_RVALID           (  S_AXI_RVALID            ),
-   .S_AXI_WREADY           (  S_AXI_WREADY            ),
-   .S_AXI_BRESP            (  S_AXI_BRESP             ),
-   .S_AXI_BVALID           (  S_AXI_BVALID            ),
-   .S_AXI_AWREADY          (  S_AXI_AWREADY           ),
-);
-
 
 ddr_if_controller
 #(
@@ -325,7 +265,7 @@ ddr_if_controller
    .Bus2IP_CS              (  Bus2IP_CS                  ),
    .Bus2IP_RNW             (  Bus2IP_RNW                 ), // 0: wr, 1: rd
    .Bus2IP_Data            (  Bus2IP_Data                ),
-   .Bus2IP_BE              (  0                  ),
+   .Bus2IP_BE              (  Bus2IP_BE                  ),
                                                     
    .IP2Bus_Data            (  IP2Bus_Data                ),
    .IP2Bus_RdAck           (  IP2Bus_RdAck               ),
@@ -334,8 +274,53 @@ ddr_if_controller
    .st_valid               (  st_valid                   )
 );
 
-ddr3A_async_fifo_0
-ddr3A_async_fifo_b2m_0
+
+// -- AXILITE IPIF
+sume_axi_ipif #
+(
+   .C_S_AXI_DATA_WIDTH     (  C_S_AXI_DATA_WIDTH      ),
+   .C_S_AXI_ADDR_WIDTH     (  C_S_AXI_ADDR_WIDTH      ),
+   .C_BASEADDR             (  C_BASEADDR              ),
+   .C_HIGHADDR             (  C_HIGHADDR              )
+)
+sume_axi_ipif
+(
+   .S_AXI_ACLK             (  clk                     ),
+   .S_AXI_ARESETN          (  resetn                  ),
+   .S_AXI_AWADDR           (  S_AXI_AWADDR            ),
+   .S_AXI_AWVALID          (  S_AXI_AWVALID           ),
+   .S_AXI_WDATA            (  S_AXI_WDATA             ),
+   .S_AXI_WSTRB            (  S_AXI_WSTRB             ),
+   .S_AXI_WVALID           (  S_AXI_WVALID            ),
+   .S_AXI_BREADY           (  S_AXI_BREADY            ),
+   .S_AXI_ARADDR           (  S_AXI_ARADDR            ),
+   .S_AXI_ARVALID          (  S_AXI_ARVALID           ),
+   .S_AXI_RREADY           (  S_AXI_RREADY            ),
+   .S_AXI_ARREADY          (  S_AXI_ARREADY           ),
+   .S_AXI_RDATA            (  S_AXI_RDATA             ),
+   .S_AXI_RRESP            (  S_AXI_RRESP             ),
+   .S_AXI_RVALID           (  S_AXI_RVALID            ),
+   .S_AXI_WREADY           (  S_AXI_WREADY            ),
+   .S_AXI_BRESP            (  S_AXI_BRESP             ),
+   .S_AXI_BVALID           (  S_AXI_BVALID            ),
+   .S_AXI_AWREADY          (  S_AXI_AWREADY           ),
+ 
+   // Controls to the IP/IPIF modules
+   .Bus2IP_Clk             (  Bus2IP_Clk              ),
+   .Bus2IP_Resetn          (  Bus2IP_Resetn           ),
+   .Bus2IP_Addr            (  Bus2IP_Addr             ),
+   .Bus2IP_RNW             (  Bus2IP_RNW              ),
+   .Bus2IP_BE              (  Bus2IP_BE               ),
+   .Bus2IP_CS              (  Bus2IP_CS               ),
+   .Bus2IP_Data            (  Bus2IP_Data             ),
+   .IP2Bus_Data            (  IP2Bus_Data             ),
+   .IP2Bus_WrAck           (  IP2Bus_WrAck            ),
+   .IP2Bus_RdAck           (  IP2Bus_RdAck            ),
+   .IP2Bus_Error           (  IP2Bus_Error            )
+);
+
+ddr3B_async_fifo_0
+ddr3B_async_fifo_b2m_0
 (
    .s_axis_aclk            (  axis_aclk               ),
    .s_axis_aresetn         (  axis_aresetn            ),
@@ -357,8 +342,8 @@ ddr3A_async_fifo_b2m_0
 );
 
 //256->64
-ddr3A_fifo_conv_b2m_0
-ddr3A_fifo_conv_b2m_0
+ddr3B_fifo_conv_b2m_0
+ddr3B_fifo_conv_b2m_0
 (
    .aclk                   (  clk                     ),
    .aresetn                (  resetn                  ),
@@ -379,8 +364,8 @@ ddr3A_fifo_conv_b2m_0
 );
 
 //64->448
-ddr3A_fifo_conv_b2m_1
-ddr3A_fifo_conv_b2m_1
+ddr3B_fifo_conv_b2m_1
+ddr3B_fifo_conv_b2m_1
 (
    .aclk                   (  clk                     ),
    .aresetn                (  resetn                  ),
@@ -451,8 +436,8 @@ b2m_fifo
 );
 
 
-ddr3A_async_fifo_0
-ddr3A_async_fifo_m2b_1
+ddr3B_async_fifo_0
+ddr3B_async_fifo_m2b_1
 (
    .s_axis_aclk            (  clk                     ),
    .s_axis_aresetn         (  resetn                  ),
@@ -475,8 +460,8 @@ ddr3A_async_fifo_m2b_1
 );
 
 //64-256
-ddr3A_fifo_conv_m2b_1
-ddr3A_fifo_conv_m2b_1
+ddr3B_fifo_conv_m2b_1
+ddr3B_fifo_conv_m2b_1
 (
    .aclk                   (  clk                     ),
    .aresetn                (  resetn                  ),
@@ -497,8 +482,8 @@ ddr3A_fifo_conv_m2b_1
 );
 
 //448->64
-ddr3A_fifo_conv_m2b_0
-ddr3A_fifo_conv_m2b_0
+ddr3B_fifo_conv_m2b_0
+ddr3B_fifo_conv_m2b_0
 (
    .aclk                   (  clk                     ),
    .aresetn                (  resetn                  ),
@@ -585,8 +570,8 @@ m2b_fifo
    .clk              (  clk                                                      )
 );
 
-mig_ddr3A
-mig_ddr3A
+mig_ddr3B
+mig_ddr3B
 (
    // Inouts
    .ddr3_dq                (  ddr3_dq                 ),
@@ -628,7 +613,6 @@ mig_ddr3A
    .app_sr_active          (  ), 
    .app_ref_ack            (  app_ref_ack_o           ),
    .app_zq_ack             (  ),
-   //233 -> 185
    .ui_clk                 (  clk                     ),
    .ui_clk_sync_rst        (  rst_clk                 ),
    .init_calib_complete    (  init_calib_complete_o   ),
